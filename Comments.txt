@@ -1,0 +1,8 @@
+=Study Design=
+
+Data collection was done through Google Forms. A link to the survey was shared on social media (Facebook), and whoever wanted to contribute was welcome to complete the form. Thus, we do not expect that the sample is representative of all tango dancers. Potential biases are that dancers with body issues maight be more willing to contribute and tell their story, compared to dancers with less issues. A very clear bias is also that relatively few beginners filled out the form, which is probalby due to the way the link was spread in the tango network. This, however, might not be a big disadvantage, since longer-term issues will have a greater visibility in the data.
+
+Raw data was processed by the R script [script name].
+
+
+=Code Book=
