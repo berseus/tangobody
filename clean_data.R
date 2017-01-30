@@ -14,8 +14,8 @@ count.responses <- function (x) {
 }
 
 
-#df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
-#country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
+# df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
+country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
 
 # remove first entry, which was only for testing the form
 df <- df_raw[2:nrow(df_raw),]
@@ -50,7 +50,44 @@ colnames(freq) <- c("Lookup.value", "Dancing.frequency.sort")
 df = cbind(df, Dancing.frequency.sort = freq$Dancing.frequency.sort[match(df$Dancing.frequency,freq$Lookup.value)])
 
 # Years in tango
-colnames(df)[colnames(df) == "For.how.long.have.you.been.dancing.tango."] <- "Years.in.tango"
+colnames(df)[colnames(df) == "For.how.long.have.you.been.dancing.tango."] <- "Time.in.tango"
+df <- cbind(df, Years.in.tango=substr(df$Time.in.tango,1,regexpr(' y', df$Time.in.tango)-1))
+df <- cbind(df, Years.in.tango.num=df$Years.in.tango)
+index <- df$Years.in.tango.num == "Less than 1" & !is.na(df$Years.in.tango.num)
+df$Years.in.tango.num <- as.numeric(df$Years.in.tango.num)
+df$Years.in.tango.num[index] <- 0
+index <- df$Years.in.tango == 20 & !is.na(df$Years.in.tango)
+df$Years.in.tango <- as.character(df$Years.in.tango)
+df$Years.in.tango[index] <- "20 or more"
+df$Years.in.tango <- as.factor(df$Years.in.tango)
+
+# High heels
+colnames(df)[colnames(df) == "When.you.dance.tango..how.often.are.you.wearing.high.heels..5.cm.or.more.."] <- "Heels.frequency"
+
+# Pain in body parts
+left <- "Pain in left side of the body"
+right <- "Pain in right side of the body"
+both <- "Pain in both sides"
+nopain <- "No pain / Don't know"
+body.parts = c("Toe", "Heel", "Ball.of.foot", "Foot..other.parts", "Ankle", "Knee", 
+               "Leg..other.parts", "Hip", "Lower.back", "Upper.back", "Abdomen", 
+               "Chest.or.ribs", "Shoulder", "Elbow", "Wrist", "Arm..other.parts", 
+               "Neck", "Forhead", "Head..other.parts")
+pain <- "Pain."
+for (body.part.input in body.parts) {
+  body.part = tolower(gsub("\\.\\.", "\\.",body.part.input))
+  body.part.raw = paste(body.part, ".raw", sep="")
+  col.raw = paste(pain, body.part.raw, sep="")
+  colnames(df)[colnames(df) == paste("Have.you.experienced.pain.after.tango.dancing.in.any.of.the.following.joints.or.body.parts...",
+      body.part.input, ".", sep="")] <- col.raw
+  df[paste(pain, body.part, ".left.side.only", sep="")] <- df[[col.raw]] == left
+  df[paste(pain, body.part, ".right.side.only", sep="")] <- df[[col.raw]] == right
+  df[paste(pain, body.part, ".both.sides", sep="")] <- df[[col.raw]] == both
+  df[paste(pain, body.part, ".right.side", sep="")] <- df[[col.raw]] == right | df[[col.raw]] == both
+  df[paste(pain, body.part, ".left.side", sep="")] <- df[[col.raw]] == left | df[[col.raw]] == both  
+  df[paste(pain, body.part, sep="")] <- df[[col.raw]] == left | df[[col.raw]] == right | df[[col.raw]] == both 
+}
+
 
 
 
@@ -147,4 +184,9 @@ nbr.per.country <- count.responses(df$Country.of.residence)
 # Test is more clean-up is needed
 df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
 
-
+export.to.file = T
+if (export.to.file) {
+  cols <- sapply(df, is.logical)
+  df[,cols] <- lapply(df[,cols], as.numeric)
+  write.xlsx(x=df, file="data/Clean.xlsx")
+}
