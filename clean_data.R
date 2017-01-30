@@ -14,8 +14,8 @@ count.responses <- function (x) {
 }
 
 
- df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
- country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
+#df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
+#country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
 
 # remove first entry, which was only for testing the form
 df <- df_raw[2:nrow(df_raw),]
@@ -62,6 +62,7 @@ ages[ages == "54 today!"] <- 54
 ages[ages == "56years"] <- 56
 ages[ages == "fourtyfour"] <- 44
 ages[ages == "59,5"] <- 59
+ages[ages == "1949Malta"] <- 67
 ages[ages == "almost 70"] <- 69
 ages[ages == "40-50"] <- 45
 ages[ages == "40+"] <- 43
@@ -79,49 +80,62 @@ country <- rbind(country, setNames(country.data[,c("Alpha.3.code", "Country.name
 rm(country.data)
 # df$Country.raw[is.na(df$Country.of.residence)]
 mult <- "*More than one country specified"
+unintelligible <- "*Not specified"
 country.corr <- data.frame(rbind(
-  c("UNITED STATES", as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("GERMAY", as.character(country$Country.name[country$Lookup.value == "DEU"])),
-  c("THE NETHERLANDS", as.character(country$Country.name[country$Lookup.value == "NLD"])),
-  c("HOLLAND", as.character(country$Country.name[country$Lookup.value == "NLD"])),
-  c("MENDOCINO", as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("UK", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("BELGIE", as.character(country$Country.name[country$Lookup.value == "BEL"])),
+  c("BELGUM", as.character(country$Country.name[country$Lookup.value == "BEL"])),
+  c("CANANDA", as.character(country$Country.name[country$Lookup.value == "CAN"])),
+  c("SWISS", as.character(country$Country.name[country$Lookup.value == "CHE"])),
   c("CZECH REPUBLIC", as.character(country$Country.name[country$Lookup.value == "CZE"])),
+  c("CZECH", as.character(country$Country.name[country$Lookup.value == "CZE"])),
+  c("DANISH", as.character(country$Country.name[country$Lookup.value == "DNK"])),
+  c("GER", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c("BERLIN", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c("HAMBURG", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c("GMERMANY", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c("GERMAN", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c("GERMAY", as.character(country$Country.name[country$Lookup.value == "DEU"])),
+  c(toupper("España"), as.character(country$Country.name[country$Lookup.value == "ESP"])),
+  c("UK", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("SCOTLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
-  c("RUSSIA", as.character(country$Country.name[country$Lookup.value == "RUS"])),
-  c("RUSSIAN", as.character(country$Country.name[country$Lookup.value == "RUS"])),
-  c("SCOTLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
-  c("PALERMO ITALY", as.character(country$Country.name[country$Lookup.value == "ITA"])),
   c("ENGLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("UNITED KINGDOM", as.character(country$Country.name[country$Lookup.value == "GBR"])),
-  c(toupper("usa (san francisco)"), as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("GMERMANY", as.character(country$Country.name[country$Lookup.value == "DEU"])),
-  c("UNITED STAT STATESES", as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("UNITED SATES", as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c("U.K.", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+  c("LONDON", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+  c("PALERMO ITALY", as.character(country$Country.name[country$Lookup.value == "ITA"])),
+  c("ITALIA", as.character(country$Country.name[country$Lookup.value == "ITA"])),
+  c("D F L", as.character(country$Country.name[country$Lookup.value == "LIE"])),
+  c("THE NETHERLANDS", as.character(country$Country.name[country$Lookup.value == "NLD"])),
+  c("HOLLAND", as.character(country$Country.name[country$Lookup.value == "NLD"])),
+  c("RUSSIA", as.character(country$Country.name[country$Lookup.value == "RUS"])),
+  c("RUSSIAN", as.character(country$Country.name[country$Lookup.value == "RUS"])),
+  c("RUSSIAN FEDERATION", as.character(country$Country.name[country$Lookup.value == "RUS"])),
+  c("SVERIGE", as.character(country$Country.name[country$Lookup.value == "SWE"])),
+  c("S", as.character(country$Country.name[country$Lookup.value == "SWE"])),
+  c("THUY DIEN", as.character(country$Country.name[country$Lookup.value == "SWE"])),
+  c("TURKIYE", as.character(country$Country.name[country$Lookup.value == "TUR"])),
   c(toupper("Taipei,Taiwan, R.O.C"), as.character(country$Country.name[country$Lookup.value == "TWN"])),
-  c("BERLIN", as.character(country$Country.name[country$Lookup.value == "DEU"])),
   c("TAIWAN", as.character(country$Country.name[country$Lookup.value == "TWN"])),
   c("TAIPEI", as.character(country$Country.name[country$Lookup.value == "TWN"])),
   c("HAWAII USA", as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("GERMAN", as.character(country$Country.name[country$Lookup.value == "DEU"])),
-  c("U.K.", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+#  c(toupper("T�oRKİYE"), as.character(country$Country.name[country$Lookup.value == "TUR"])),
+  c("UNITED STATES", as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c("UNITED STATES OF AMERICA", as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c("MENDOCINO", as.character(country$Country.name[country$Lookup.value == "USA"])),
   c("U.S", as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c(toupper("usa (san francisco)"), as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c("UNITED STAT STATESES", as.character(country$Country.name[country$Lookup.value == "USA"])),
+  c("UNITED SATES", as.character(country$Country.name[country$Lookup.value == "USA"])),
   c("U.S.", as.character(country$Country.name[country$Lookup.value == "USA"])),
   c("U.S.A.", as.character(country$Country.name[country$Lookup.value == "USA"])),
-  c("BELGUM", as.character(country$Country.name[country$Lookup.value == "BEL"])),
-  c("CANANDA", as.character(country$Country.name[country$Lookup.value == "CAN"])),
-  c("GER", as.character(country$Country.name[country$Lookup.value == "DEU"])),
-  c("ITALIA", as.character(country$Country.name[country$Lookup.value == "ITA"])),
-  c(toupper("España"), as.character(country$Country.name[country$Lookup.value == "ESP"])),
-  c("TURKIYE", as.character(country$Country.name[country$Lookup.value == "TUR"])),
-#  c(toupper("T�oRKİYE"), as.character(country$Country.name[country$Lookup.value == "TUR"])),
   c("SCANDINAVIA", mult),
   c("EU", mult),
+  c("DK / UK", mult),
   c(toupper("Argentina-France-others"), mult),
   c(toupper("Guatemala/USA"), mult),
   c(toupper("USA, Taiwan"), mult),
-  c(toupper("usa/mexico"), mult)
+  c(toupper("usa/mexico"), mult),
+  c(toupper("Ukhe"), unintelligible)
 ))
 country <- rbind(country, setNames(country.corr,names(country)))
 colnames(df)[colnames(df) == "Your.country.of.residence."] <- "Country.raw"
@@ -130,5 +144,7 @@ index <- df$Country.raw == grep("RK", df$Country.raw, value=TRUE) & is.na(df$Cou
 df$Country.of.residence[index] <- as.character(country$Country.name[country$Lookup.value == "TUR"])
 nbr.per.country <- count.responses(df$Country.of.residence)
 
+# Test is more clean-up is needed
+df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
 
 
