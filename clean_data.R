@@ -1,9 +1,11 @@
+# df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
+# country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
+
 # if (!file.exists("data")) {
 #  dir.create("data")
 #}
 #install.packages(file.choose(), repos=NULL)
 #library(xlsx)
-#set.seed(123)
 
 # functions
 trim <- function (x) gsub("^\\s+|\\s+$", "", x)
@@ -13,23 +15,30 @@ count.responses <- function (x) {
   b[order(b$Nbr, na.last=T, decreasing=T),]
 }
 
-
-# df_raw <- read.xlsx("./data/Tango and Your Body (Responses).xlsx", sheetIndex=1, header=TRUE)
-country_raw <- read.xlsx("./util/Countries.xlsx",sheetIndex=1, header=TRUE)
-
-# remove first entry, which was only for testing the form
-df <- df_raw[2:nrow(df_raw),]
+# data treatment starts here
+df <- df_raw
 
 # find unique rows when time rounded off to hours, 
 # but go back to original time stamps
-df_hours <- cbind(round(df[,1], units="hours"),df[,2:ncol(df)])
-df <- df[!duplicated(df_hours),]
-rm(df_hours)
+df <- cbind(Time.by.hour=round(df[,1], units="hours"), df)
+df <- df[!duplicated(df[,-2]),]
+df <- subset(df, select = -Time.by.hour)
+
+# remove first entry, which was only for testing the form
+df <- df[2:nrow(df),]
+
+# remove records where answers indicate non-sincere responses
+df <- df[df$Your.age.in.years.!=200 | is.na(df$Your.age.in.years.),] # also had country=suburbia
 
 # remove email addresses and store them separately
 colnames(df)[colnames(df) == "In.case.you.want.us.to.share.the.results.of.the.survey.with.you..please.enter.your.e.mail.address..will.be.used.for.this.specific.purpose.only.."] <- "Email"
 emails <- df$Email[!is.na(df$Email)]
 df <- subset(df, select = -Email)
+
+# remove empty rows
+df_notime <- df[,!names(df) %in% "Timestamp"]
+df <- df[rowSums(is.na(df_notime)) != ncol(df_notime),]
+rm(df_notime)
 
 # Leader/follower
 colnames(df)[colnames(df) == "Begin.by.telling.us.which.role.you.are.dancing.more.often."] <- "Dancing.role"
@@ -65,29 +74,60 @@ df$Years.in.tango <- as.factor(df$Years.in.tango)
 colnames(df)[colnames(df) == "When.you.dance.tango..how.often.are.you.wearing.high.heels..5.cm.or.more.."] <- "Heels.frequency"
 
 # Pain in body parts
+pain <- "Pain."
 left <- "Pain in left side of the body"
 right <- "Pain in right side of the body"
 both <- "Pain in both sides"
 nopain <- "No pain / Don't know"
-body.parts = c("Toe", "Heel", "Ball.of.foot", "Foot..other.parts", "Ankle", "Knee", 
-               "Leg..other.parts", "Hip", "Lower.back", "Upper.back", "Abdomen", 
-               "Chest.or.ribs", "Shoulder", "Elbow", "Wrist", "Arm..other.parts", 
-               "Neck", "Forhead", "Head..other.parts")
-pain <- "Pain."
-for (body.part.input in body.parts) {
+body.parts.input = c("toe", "heel", "ball.of.foot", "foot..other.parts", "ankle", "knee", 
+               "leg..other.parts", "hip", "lower.back", "upper.back", "abdomen", 
+               "chest.or.ribs", "shoulder", "elbow", "wrist", "arm..other.parts", 
+               "neck", "forhead", "head..other.parts")
+body.parts.group1 = c("foot", "foot", "foot", "foot", "foot", "hip.leg.or.knee",
+                     "hip.leg.or.knee", "hip.leg.or.knee", "back", "back", "front.of.torso",
+                     "front.of.torso", "neck.or.shoulder", "arm.or.hand", "arm.or.hand", "arm.or.hand", 
+                     "neck.or.shoulder", "head", "head")
+body.parts.group2 = c("foot.or.leg", "foot.or.leg", "foot.or.leg", "foot.or.leg", "foot.or.leg", "foot.or.leg",
+                      "foot.or.leg", "hip.back.or.torso", "hip.back.or.torso", "hip.back.or.torso", 
+                      "hip.back.or.torso", "hip.back.or.torso", "shoulder.arm.neck.or.head", 
+                      "shoulder.arm.neck.or.head", "shoulder.arm.neck.or.head", "shoulder.arm.neck.or.head", 
+                      "shoulder.arm.neck.or.head", "shoulder.arm.neck.or.head", "shoulder.arm.neck.or.head")
+grouping <- data.frame(part.raw=gsub("\\.\\.", "\\.",body.parts.input), 
+  group1=body.parts.group1, group2=body.parts.group2)
+body.part.group1 <- unique(grouping$group1)
+body.part.group2 <- unique(grouping$group2)
+for (body.part1 in body.part.group1) {
+  df[paste(pain, body.part1, sep="")] <- F
+}
+for (body.part2 in body.part.group2) {
+  df[paste(pain, body.part2, sep="")] <- F
+}
+for (body.part.input in body.parts.input) {
   body.part = tolower(gsub("\\.\\.", "\\.",body.part.input))
   body.part.raw = paste(body.part, ".raw", sep="")
   col.raw = paste(pain, body.part.raw, sep="")
-  colnames(df)[colnames(df) == paste("Have.you.experienced.pain.after.tango.dancing.in.any.of.the.following.joints.or.body.parts...",
-      body.part.input, ".", sep="")] <- col.raw
+  colnames(df)[tolower(colnames(df)) == paste("have.you.experienced.pain.after.tango.dancing.in.any.of.the",
+    ".following.joints.or.body.parts...", tolower(body.part.input), ".", sep="")] <- col.raw
+  df[is.na(df[[col.raw]]), col.raw] <- nopain # here we assume that no answer equals "No pain / don't know"
   df[paste(pain, body.part, ".left.side.only", sep="")] <- df[[col.raw]] == left
   df[paste(pain, body.part, ".right.side.only", sep="")] <- df[[col.raw]] == right
   df[paste(pain, body.part, ".both.sides", sep="")] <- df[[col.raw]] == both
   df[paste(pain, body.part, ".right.side", sep="")] <- df[[col.raw]] == right | df[[col.raw]] == both
   df[paste(pain, body.part, ".left.side", sep="")] <- df[[col.raw]] == left | df[[col.raw]] == both  
-  df[paste(pain, body.part, sep="")] <- df[[col.raw]] == left | df[[col.raw]] == right | df[[col.raw]] == both 
+  df[paste(pain, body.part, sep="")] <- df[[col.raw]] == left | df[[col.raw]] == right | df[[col.raw]] == both
+  part1 <- grouping$group1[grouping$part.raw == body.part]
+  part2 <- grouping$group2[grouping$part.raw == body.part]
+  df[paste(pain, part1, sep="")] <- df[paste(pain, part1, sep="")] | df[paste(pain, body.part, sep="")]
+  df[paste(pain, part2, sep="")] <- df[paste(pain, part1, sep="")] | df[paste(pain, body.part, sep="")]
 }
+rm(list=ls(pattern="body.part"))
+rm(list=c("part1","part2","pain","nopain","right","left","both"))
 
+# Tension
+dontknow <- "Don't know"
+yes <- "Yes"
+no <- "No"
+colnames(df)[colnames(df) == "Do.you.ever.feel.tense.in.your.body.during..or.right.after..tango.dancing."] <- "Feeling.tense.raw"
 
 
 
@@ -106,12 +146,13 @@ ages[ages == "40+"] <- 43
 ages[ages == "60+"] <- 63
 ages[ages == "70+"] <- 73
 df <- cbind(df, Age.in.years = ages)
+rm(ages)
 nbr.per.age <- count.responses(df$Age.in.years)
 
 # clean up country
 country.data <- cbind(toupper(country_raw$Short.name), country_raw)
 colnames(country.data)[c(1,2)] <- c("Lookup.value", "Country.name")
-country <- subset(country.data, , c("Lookup.value", "Country.name"))
+country <- subset(country.data, T, c("Lookup.value", "Country.name"))
 country <- rbind(country, setNames(country.data[,c("Alpha.2.code", "Country.name")], names(country)))
 country <- rbind(country, setNames(country.data[,c("Alpha.3.code", "Country.name")], names(country)))
 rm(country.data)
@@ -134,13 +175,16 @@ country.corr <- data.frame(rbind(
   c("GERMAY", as.character(country$Country.name[country$Lookup.value == "DEU"])),
   c(toupper("España"), as.character(country$Country.name[country$Lookup.value == "ESP"])),
   c("UK", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+  c("UKHE", as.character(country$Country.name[country$Lookup.value == "GBR"])), # questionable guess
   c("SCOTLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("ENGLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("UNITED KINGDOM", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("U.K.", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("LONDON", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+  c("CRO", as.character(country$Country.name[country$Lookup.value == "HRV"])),
   c("PALERMO ITALY", as.character(country$Country.name[country$Lookup.value == "ITA"])),
   c("ITALIA", as.character(country$Country.name[country$Lookup.value == "ITA"])),
+  c(toupper("Malta -> Canada -> Switzerland -> Kenya ;-)"), as.character(country$Country.name[country$Lookup.value == "KEN"])),
   c("D F L", as.character(country$Country.name[country$Lookup.value == "LIE"])),
   c("THE NETHERLANDS", as.character(country$Country.name[country$Lookup.value == "NLD"])),
   c("HOLLAND", as.character(country$Country.name[country$Lookup.value == "NLD"])),
@@ -155,7 +199,7 @@ country.corr <- data.frame(rbind(
   c("TAIWAN", as.character(country$Country.name[country$Lookup.value == "TWN"])),
   c("TAIPEI", as.character(country$Country.name[country$Lookup.value == "TWN"])),
   c("HAWAII USA", as.character(country$Country.name[country$Lookup.value == "USA"])),
-#  c(toupper("T�oRKİYE"), as.character(country$Country.name[country$Lookup.value == "TUR"])),
+#  c(toupper("T?oRKİYE"), as.character(country$Country.name[country$Lookup.value == "TUR"])),
   c("UNITED STATES", as.character(country$Country.name[country$Lookup.value == "USA"])),
   c("UNITED STATES OF AMERICA", as.character(country$Country.name[country$Lookup.value == "USA"])),
   c("MENDOCINO", as.character(country$Country.name[country$Lookup.value == "USA"])),
@@ -171,8 +215,7 @@ country.corr <- data.frame(rbind(
   c(toupper("Argentina-France-others"), mult),
   c(toupper("Guatemala/USA"), mult),
   c(toupper("USA, Taiwan"), mult),
-  c(toupper("usa/mexico"), mult),
-  c(toupper("Ukhe"), unintelligible)
+  c(toupper("usa/mexico"), mult)
 ))
 country <- rbind(country, setNames(country.corr,names(country)))
 colnames(df)[colnames(df) == "Your.country.of.residence."] <- "Country.raw"
@@ -184,7 +227,7 @@ nbr.per.country <- count.responses(df$Country.of.residence)
 # Test is more clean-up is needed
 df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
 
-export.to.file = T
+export.to.file = F
 if (export.to.file) {
   cols <- sapply(df, is.logical)
   df[,cols] <- lapply(df[,cols], as.numeric)
