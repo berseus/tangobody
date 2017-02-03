@@ -125,9 +125,55 @@ rm(list=c("part1","part2","pain","nopain","right","left","both"))
 
 # Tension
 dontknow <- "Don't know"
+noresponse <- "No response"
 yes <- "Yes"
 no <- "No"
 colnames(df)[colnames(df) == "Do.you.ever.feel.tense.in.your.body.during..or.right.after..tango.dancing."] <- "Feeling.tense.raw"
+colnames(df)[colnames(df) == "If.yes..then.where."] <- "Feeling.tense.where.raw"
+df$Feeling.tense.raw <- as.character(df$Feeling.tense.raw)
+df$Feeling.tense.raw[is.na(df$Feeling.tense.raw)] <- noresponse
+df$Feeling.tense.raw <- as.factor(df$Feeling.tense.raw)
+df$Feeling.tense <- df$Feeling.tense.raw == yes
+# write.xlsx(x=, df$Feeling.tense.where.raw[!is.na(df$Feeling.tense.where.raw)], file="data/Tense_where_raw.xlsx")
+body.parts = c("toe", "foot", "ankle", "calf", "knee", "leg", "hip", "lower back", "upper back", "back", "abdomen", 
+                     "chest", "shoulder", "elbow", "wrist", "arm", "neck", "all body", "thigh", "right", "left")
+body.part.map <- cbind(input.string=body.parts, col.name=body.parts)
+variants <- data.frame(rbind(
+  c(" all ", "all body"),
+  c("everywhere", "all body"),
+  c("all over", "all body"),
+  c("kene", "knee"),
+  c("beck", "back"),
+  c("feet", "foot"),
+  c("hamstring", "thigh"),
+  c("calves", "calf"),
+  c("core", "abdomen"),
+  c("lower traps and lats", "upper back"),
+  c("scapula", "shoulder"),
+  c("de hele rug", "back"),
+  c("pciatica", "lower back"),
+  c("it band/quads", "thigh"),
+  c("hip flexors", "hip"),
+  c("lower belly", "abdomen"),
+  c("rygg", "back"),
+  c("skuldra", "shoulder"),
+  c("loewe back", "lower back"),
+  c("skulder", "shoulder"),
+  c("back, upper", "upper back")
+))
+body.part.map <- rbind(body.part.map, setNames(variants,colnames(body.part.map)))
+
+# loop over body.parts
+#    create column for the part, values false
+#    if the raw column contains input.string, update body part column using or condition for the boolean
+# end loop
+
+# loop over following exceptions to remove all false indications of the body part
+# "push back" -1 for back
+# "Problems with knees and other parts appear very seldom"
+# "who project their head forward"
+# "without the right preparation"
+
 
 
 
@@ -149,7 +195,7 @@ df <- cbind(df, Age.in.years = ages)
 rm(ages)
 nbr.per.age <- count.responses(df$Age.in.years)
 
-# clean up country
+# Country
 country.data <- cbind(toupper(country_raw$Short.name), country_raw)
 colnames(country.data)[c(1,2)] <- c("Lookup.value", "Country.name")
 country <- subset(country.data, T, c("Lookup.value", "Country.name"))
@@ -178,6 +224,7 @@ country.corr <- data.frame(rbind(
   c("UKHE", as.character(country$Country.name[country$Lookup.value == "GBR"])), # questionable guess
   c("SCOTLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("ENGLAND", as.character(country$Country.name[country$Lookup.value == "GBR"])),
+  c("ENGLAND.", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("UNITED KINGDOM", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("U.K.", as.character(country$Country.name[country$Lookup.value == "GBR"])),
   c("LONDON", as.character(country$Country.name[country$Lookup.value == "GBR"])),
