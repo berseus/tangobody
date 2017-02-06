@@ -14,6 +14,17 @@ count.responses <- function (x) {
   b <- data.frame(Value=a$values, Nbr=a$lengths)
   b[order(b$Nbr, na.last=T, decreasing=T),]
 }
+na.to.string <- function (x, str) {
+  x <- as.character(x)
+  x[is.na(x)] <- str
+  as.factor(x)
+}
+
+# Nice to have variables
+dontknow <- "Don't know"
+noresponse <- "(No response)"
+yes <- "Yes"
+no <- "No"
 
 # data treatment starts here
 df <- df_raw
@@ -42,9 +53,12 @@ rm(df_notime)
 
 # Leader/follower
 colnames(df)[colnames(df) == "Begin.by.telling.us.which.role.you.are.dancing.more.often."] <- "Dancing.role"
-Is.a.leader <- df$Dancing.role == "Leader" | df$Dancing.role == "Leader and follower in equal amounts"
-Is.a.follower <- df$Dancing.role == "Follower" | df$Dancing.role == "Leader and follower in equal amounts"
-df <- cbind(df, Is.a.leader, Is.a.follower)
+df$Dancing.role = na.to.string(df$Dancing.role, noresponse)
+df$Is.a.leader <- df$Dancing.role == "Leader" | df$Dancing.role == "Leader and follower in equal amounts"
+df$Is.a.follower <- df$Dancing.role == "Follower" | df$Dancing.role == "Leader and follower in equal amounts"
+df$Is.a.leader.only <- df$Dancing.role == "Leader"
+df$Is.a.follower.only <- df$Dancing.role == "Follower"
+df$Is.a.follower.and.a.leader <- df$Dancing.role == "Leader and follower in equal amounts"
 
 # Dancing frequency
 colnames(df)[colnames(df) == "How.often.do.you.dance.tango..including.milongas..classes..practice..etc..."] <- "Dancing.frequency"
@@ -124,20 +138,13 @@ rm(list=ls(pattern="body.part"))
 rm(list=c("part1","part2","pain","nopain","right","left","both"))
 
 # Tension
-dontknow <- "Don't know"
-noresponse <- "(No response)"
-yes <- "Yes"
-no <- "No"
+
 tension <- "Tension."
 colnames(df)[colnames(df) == "Do.you.ever.feel.tense.in.your.body.during..or.right.after..tango.dancing."] <- "Feeling.tense.raw"
 colnames(df)[colnames(df) == "If.yes..then.where."] <- "Feeling.tense.where.raw"
-df$Feeling.tense.raw <- as.character(df$Feeling.tense.raw)
-df$Feeling.tense.raw[is.na(df$Feeling.tense.raw)] <- noresponse
-df$Feeling.tense.raw <- as.factor(df$Feeling.tense.raw)
+df$Feeling.tense.raw <- na.to.string(df$Feeling.tense.raw, noresponse)
 df$Feeling.tense <- df$Feeling.tense.raw == yes
-df$Feeling.tense.where.raw <- as.character(df$Feeling.tense.where.raw)
-df$Feeling.tense.where.raw[is.na(df$Feeling.tense.where.raw)] <- noresponse
-df$Feeling.tense.where.raw <- as.factor(df$Feeling.tense.where.raw)
+df$Feeling.tense.where.raw <- na.to.string(df$Feeling.tense.where.raw, noresponse)
 # write.xlsx(x=, df$Feeling.tense.where.raw[!is.na(df$Feeling.tense.where.raw)], file="data/Tense_where_raw.xlsx")
 body.parts = c("toe", "foot", "ankle", "calf", "knee", "leg", "hip", "lower back", "upper back", "back", "abdomen", 
                      "chest", "shoulder", "elbow", "wrist", "arm", "neck", "all body", "thigh", "right", "left")
@@ -178,7 +185,7 @@ for (input.str in map$input.string) {
 false.pos <- data.frame(rbind(
   c("push back", "back"),
   c("Problems with knees and other parts appear very seldom", "knee"),
-#  c("who project their head forward", "head"),
+#  c("who project their head forward", "head"),  (not yet a hit column)
   c("without the right preparation", "right")
 ))
 colnames(false.pos) <- c("input.string", "col.name")
@@ -187,8 +194,37 @@ for (input.str in false.pos$input.string) {
   false.hits <- df$Feeling.tense.where.raw %in% grep(input.str, df$Feeling.tense.where.raw, value=T)
   df[,colname] <- df[,colname] & !false.hits
 }
+# Could be tested by looking at the free text of all rows that have no listed body parts mentioned
 
-# Age
+# Waking up sore
+colnames(df)[colnames(df) == 
+  paste("Have.you.ever.woken.up.with.a.sore.neck..upper.back",
+        ".or.shoulder.after.a.night.of.tango.dancing.",sep="")] <- "Wake.up.sore.raw"
+df$Wake.up.sore.raw <- na.to.string(df$Wake.up.sore.raw, noresponse)
+df$Wake.up.sore <- df$Wake.up.sore.raw == yes
+
+## Lower back pain
+colnames(df)[colnames(df) == "Have.you.ever.experienced.lower.back.pain."] <- "Lower.back.pain.raw"
+df$Lower.back.pain.raw <- na.to.string(df$Lower.back.pain.raw, noresponse)
+yes.tango.and.unrelated <- "Yes, both in tango and in unrelated situations"
+yes.tango.only <- "Yes, only during or right after tango"
+yes.unrelated.only <- "Yes, only in situations unrelated to tango (work, at home...)"
+df$Lower.back.pain.tango.and.elsewhere <- df$Lower.back.pain.raw == yes.tango.and.unrelated
+df$Lower.back.pain.tango.only <- df$Lower.back.pain.raw == yes.tango.only
+df$Lower.back.pain.elsewhere.only <- df$Lower.back.pain.raw == yes.unrelated.only
+
+## Hallux valgus
+colnames(df)[colnames(df) == "Do.you.have.bunions..hallux.valgus..on.your.big.toe.joints."] <- "Hallux.valgus.raw"
+df$Hallux.valgus.raw <- na.to.string(df$Hallux.valgus.raw, noresponse)
+df$Hallux.valgus <- df$Hallux.valgus.raw == yes
+
+## Ankle.sprain
+colnames(df)[colnames(df) == paste("Have.you.ever.sprained.an.ankle..i.e..twisted.the.joint.between",
+  ".the.leg.and.the.foot.so.it.got.sore.and.swollen..while.dancing.tango.", sep="")] <- "Ankle.sprain.raw"
+df$Ankle.sprain.raw <- na.to.string(df$Ankle.sprain.raw, noresponse)
+df$Ankle.sprain.from.tango <- df$Ankle.sprain.raw == yes
+
+## Age
 # (rather than discarding unprecise answers, we make reasonable guesses)
 colnames(df)[colnames(df) == "Your.age.in.years."] <- "Age.raw"
 ages <- trim(df$Age.raw)
@@ -285,7 +321,7 @@ nbr.per.country <- count.responses(df$Country.of.residence)
 # Test is more clean-up is needed
 df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
 
-export.to.file = T
+export.to.file = F
 if (export.to.file) {
   cols <- sapply(df, is.logical)
   df[,cols] <- lapply(df[,cols], as.numeric)
