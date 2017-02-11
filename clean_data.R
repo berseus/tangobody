@@ -19,6 +19,11 @@ na.to.string <- function (x, str) {
   x[is.na(x)] <- str
   as.factor(x)
 }
+repl.string <- function (x, before, after) {
+  x <- as.character(x)
+  x[x == before] <- after
+  as.factor(x)
+}
 
 # Nice to have variables
 dontknow <- "Don't know"
@@ -31,7 +36,7 @@ df <- df_raw
 
 # find unique rows when time rounded off to hours, 
 # but go back to original time stamps
-df <- cbind(Time.by.hour=round(df[,1], units="hours"), df)
+df <- cbind(Time.by.hour=round(df[,1], units="days"), df)
 df <- df[!duplicated(df[,-2]),]
 df <- subset(df, select = -Time.by.hour)
 
@@ -179,7 +184,8 @@ for (c in col.names) {
 }
 for (input.str in map$input.string) {
   colname <- paste(tension, map$col.name[map$input.string == input.str],sep="")
-  hits <- df$Feeling.tense.where.raw %in% grep(input.str, df$Feeling.tense.where.raw, value=T)
+  hits <- df$Feeling.tense.where.raw %in% 
+    grep(input.str, df$Feeling.tense.where.raw, ignore.case = T, value=T)
   df[,colname] <- df[,colname] | hits
 }
 false.pos <- data.frame(rbind(
@@ -191,7 +197,8 @@ false.pos <- data.frame(rbind(
 colnames(false.pos) <- c("input.string", "col.name")
 for (input.str in false.pos$input.string) {
   colname <- paste(tension, false.pos$col.name[false.pos$input.string == input.str],sep="")
-  false.hits <- df$Feeling.tense.where.raw %in% grep(input.str, df$Feeling.tense.where.raw, value=T)
+  false.hits <- df$Feeling.tense.where.raw %in% 
+    grep(input.str, df$Feeling.tense.where.raw, ignore.case = T, value=T)
   df[,colname] <- df[,colname] & !false.hits
 }
 # Could be tested by looking at the free text of all rows that have no listed body parts mentioned
@@ -218,11 +225,184 @@ colnames(df)[colnames(df) == "Do.you.have.bunions..hallux.valgus..on.your.big.to
 df$Hallux.valgus.raw <- na.to.string(df$Hallux.valgus.raw, noresponse)
 df$Hallux.valgus <- df$Hallux.valgus.raw == yes
 
-## Ankle.sprain
+## Ankle sprain
 colnames(df)[colnames(df) == paste("Have.you.ever.sprained.an.ankle..i.e..twisted.the.joint.between",
   ".the.leg.and.the.foot.so.it.got.sore.and.swollen..while.dancing.tango.", sep="")] <- "Ankle.sprain.raw"
 df$Ankle.sprain.raw <- na.to.string(df$Ankle.sprain.raw, noresponse)
 df$Ankle.sprain.from.tango <- df$Ankle.sprain.raw == yes
+
+## Muscle strain
+strained <- "Strained.muscle."
+colnames(df)[colnames(df) == paste("Have.you.ever.strained.a.muscle..minor.muscle.injury.which.is.painful",
+  ".but.often.heals.within.a.couple.of.days..while.dancing.tango.", sep="")] <- "Strained.muscle.raw"
+df$Strained.muscle.raw <- na.to.string(df$Strained.muscle.raw, noresponse)
+df$Strained.muscle <- df$Strained.muscle == yes
+colnames(df)[colnames(df) == paste("If.your.answer.was.yes.to.the.above.question..in.which.body.parts.have",
+  ".you.had.muscle.strains.", sep="")] <- "Strained.muscle.where.raw"
+df$Strained.muscle.where.raw <- na.to.string(df$Strained.muscle.where.raw, noresponse)
+
+body.parts = c("left", "right", "abdomen", "ankle", "arm", "back", "lower back", "upper back", "calf", 
+               "chest", "foot", "glutes", "groin", "hamstring", "heel", "hip", "knee", "leg", "neck", 
+               "shoulder", "quadriceps", "ribs", "thigh", "toe", "wrist")
+col.names = gsub(" ", "\\.",body.parts)
+map <- cbind(input.string=body.parts, col.name=col.names)
+variants <- data.frame(rbind(
+  c("bottom", "glutes"),
+  c("spine", "back"),
+  c("calves", "calf"),
+  c("food", "foot"),
+  c("achilles", "heel"),
+  c("feet", "foot"),
+  c("quadratus lumborum", "back"),           
+  c("belly", "abdomen"),
+  c("sciatica", "lower.back"),
+  c("sciatic", "back"),
+  c("posterior thigh", "hamstring"),
+  c("gemelos", "calf"),
+  c("trapecio", "neck"),
+  c("isquiotibiales", "hamstring"),   
+  c("arch", "foot"),
+  c("onderbeen", "leg"),       
+  c("rotator cuff", "shoulder"),
+  c("instep", "foot"),
+  c("adducctor", "thigh"),
+  c("lower leg back muscle", "calf"), 
+  c(" l ", "left"),
+  c(" r ", "right"),
+  c("thorax muscles", "chest"),
+  c("quads", "quadriceps"),
+  c("thigh front muscles", "quadriceps")
+))
+map <- rbind(map, setNames(variants,colnames(map)))
+for (c in col.names) {
+  df[paste(strained, c, sep="")] <- F
+}
+for (input.str in map$input.string) {
+  colname <- paste(strained, map$col.name[map$input.string == input.str],sep="")
+  hits <- df$Strained.muscle.where.raw %in% 
+    grep(input.str, df$Strained.muscle.where.raw, ignore.case = T, value=T)
+  df[,colname] <- df[,colname] | hits
+}
+false.pos <- data.frame(rbind(
+  c("with foot planted", "foot"),
+  c("heels too high", "heel"),
+  c("back of", "back"),
+  c("leg back muscle", "back"),
+  c("wearing heels", "heel"),
+  c("than on right", "right"),
+  c("made it come back", "back"),
+  c("dance in heels", "heel")
+))
+colnames(false.pos) <- c("input.string", "col.name")
+for (input.str in false.pos$input.string) {
+  colname <- paste(strained, false.pos$col.name[false.pos$input.string == input.str],sep="")
+  false.hits <- df$Strained.muscle.where.raw %in% 
+    grep(input.str, df$Strained.muscle.where.raw, ignore.case = T, value=T)
+  df[,colname] <- df[,colname] & !false.hits
+}
+
+## Knee injury
+colnames(df)[colnames(df) == "Have.you.ever.injured.a.knee.while.dancing.tango."] <- "Knee.injury"
+df$Knee.injury <- na.to.string(df$Knee.injury, noresponse)
+df$Knee.injury <- df$Knee.injury == yes
+colnames(df)[colnames(df) == paste("If.your.answer.was.yes.to.the.above.question..please.specify.the.kind",
+  ".of.injury.to.your.knee..meniscus.tear..torn.ligament......", sep="")] <- "Knee.injury.what.txt"
+df$Knee.injury.what.txt <- na.to.string(df$Knee.injury.what.txt, noresponse)
+# finds occurrences in the data.col of each given string from the pattern.vector
+# an returns a column with T where any match was found, F otherwise
+find.hits <- function (input.col, pattern.vector) {
+  result <- input.col == F
+  for (p in pattern.vector) {
+    hits <- input.col %in% grep(p, input.col, ignore.case = T, value=T)
+    result <- result | hits
+  }
+  result
+}
+map.symptoms.to.cols <- function(input.col, col.prefix, symptom.list) {
+  result.df <- data.frame(input.col)
+  colnames(result.df) <- "Dummy"
+  for (n in names(symptom.list)) {
+    colname <- paste(col.prefix, n, sep="")
+    result.df[,colname] <- find.hits(input.col, unlist(symptom.list[n]))
+  }
+  data.frame(subset(result.df, select = -Dummy))
+}
+symptom.list <- list(
+  swollen = c("swell", "swoll", "swilled"),
+  inflammation = c("inflammation", "bursitis", "tendinitis"),
+  pain = c("pain", "sore", "hurt", "impingement"),
+  strain = c("strain", "stress", "pressure"),
+  tear.or.sprain = c("torn", "tear", "sprain"),
+  arthritis = c("artrosis", "arthrosis", "artros", "osteoarthritis"),
+  loss.of.rom = c("could not bend", "stiff"),
+  imbalanced = c("feeling an imbalance", "misaligned"),
+  open.wound = c("open wound")
+)
+df <- cbind(df, map.symptoms.to.cols(df$Knee.injury.what, "Knee.injury.", symptom.list))
+
+#Knee.injury.where.patella
+# "patella"
+# "cartilage"
+# "meniscus"
+# "ligament"/ "ACL" / "tendons"
+# "fat pad"
+
+#Knee.injury.cause.floor
+#Knee.injury.cause.overuse
+#Knee.injury.cause.pivot
+#Knee.injury.cause.shoes
+#Knee.injury.cause.leader
+#Knee.injury.cause.nontango
+# "floor" / "surface" / "rubber sole"
+# "overuse" / "after the first marathon"
+# "pivot" / "turn" / "ocho" / "rotations" / "twist"
+# "leader"
+# "ancient damage" / "from ski" / "not directly related to tango" / "due to the age" / "caused by "hope" dancing, but flaring up during tango"
+# "not wearing high heels help"
+
+#Knee.injury.duration.text
+# "for a while"
+# "three weeks"
+# "a few days"
+# "for a day"
+# "a couple of days"
+# "could not dance for awhile"
+# "nothing a good nights sleep/rest havnt cured jet"
+
+
+# 
+## Open wound <- 
+colnames(df)[colnames(df) == "Have.you.ever.gotten.an.open.wound..with.blood..from.dancing.tango."] <- "Open.wound.raw"                                                                                                                                                               
+colnames(df)[colnames(df) == paste("If.your.answer.was.yes.to.the.above.question..in.which.body.part.did",
+  ".you.get.wounded.and.how.", sep="")] <- "Open.wound.where.how.raw"
+
+## Other tango injures <- 
+colnames(df)[colnames(df) == paste("Please.describe.any.other.tango.injuries.resulting.from.something",
+  ".specific.that.happened.on.the.dance.floor..e.g..hit.by.elbow..stepped.on..slipped.....",
+  sep="")] <- "Other.tango.injury.raw"
+
+## Longer term issues
+colnames(df)[colnames(df) == paste("Have.you.experienced.any.longer.term.body.issues.you.have.experienced",
+  ".that.might.be.related.to.your.tango.dancing.", sep="")] <- "Long.term.issues.raw"                                                                                                              
+colnames(df)[colnames(df) == "If.yes..please.describe.the.issues."] <- "Long.term.issues.descr.raw"                                                                                                                                                                                             
+colnames(df)[colnames(df) == paste("Please.describe.any.measures.you.have.taken..e.g..changing",
+  ".of.technique..going.to.a.chiropractor..strengthening.muscles.in.the.gym..avoiding.to.dance",
+  ".with.certain.partners...to.address.any.longer.term.tango.related.body.issues.",
+  sep="")] <- "Long.term.issues.measures.taken.raw"
+
+## Stopped dancing
+colnames(df)[colnames(df) == paste("Did.you.ever.need.to.stop.dancing.for.a.period.of.time.because.of",
+  ".body.issues..including.issues.caused.by.other.things.than.tango...", sep="")] <- "Stop.dancing.raw"
+colnames(df)[colnames(df) == "If.yes..please.describe.the.cause."] <- "Stop.dancing.cause.raw"                                                                                                                                                                                                
+colnames(df)[colnames(df) == "...and.tell.us.for.how.long.you.were.unable.to.dance."] <- 
+  "Stop.dancing.how.long.raw"
+
+## Other issues
+colnames(df)[colnames(df) == paste("Any.more.body.issues.that.you.have.had.from.tango..but.that.weren.t",
+  ".mentioned.so.far.in.the.survey.", sep="")] <- "Other.issues.raw"
+
+## Oveall health
+colnames(df)[colnames(df) == "How.would.you.rate.your.overall.health."] <- "Overall.health.raw"
 
 ## Age
 # (rather than discarding unprecise answers, we make reasonable guesses)
@@ -313,10 +493,13 @@ country.corr <- data.frame(rbind(
 ))
 country <- rbind(country, setNames(country.corr,names(country)))
 colnames(df)[colnames(df) == "Your.country.of.residence."] <- "Country.raw"
+uk.flag <- "\xed\xa0\xbc\xed\xb7\xac\xed\xa0\xbc\xed\xb7\xa7 "
+df$Country.raw <- repl.string(df$Country.raw, uk.flag, "UK")
 df <- cbind(df, Country.of.residence = country$Country.name[match(toupper(trim(df$Country.raw)), country$Lookup.value)])
 index <- df$Country.raw == grep("RK", df$Country.raw, value=TRUE) & is.na(df$Country.of.residence)
 df$Country.of.residence[index] <- as.character(country$Country.name[country$Lookup.value == "TUR"])
 nbr.per.country <- count.responses(df$Country.of.residence)
+rm(uk.flag)
 
 # Test is more clean-up is needed
 df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
