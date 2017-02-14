@@ -24,6 +24,29 @@ repl.string <- function (x, before, after) {
   x[x == before] <- after
   as.factor(x)
 }
+# finds occurrences in the data.col of each given string from the keyword.vector
+# an returns a column with T where any match was found, F otherwise
+find.hits <- function (input.col, keyword.vector) {
+  result <- input.col == F
+  for (keyword in keyword.vector) {
+    hits <- input.col %in% grep(keyword, input.col, ignore.case = T, value=T)
+    result <- result | hits
+  }
+  result
+}
+# creates boolean data frame columns from a given list of keyword vectors, where the name of 
+# each vector will be used as the suffix of the name of each new df column. 
+# The prefix for the column names is given as an argument, as well as the input column 
+# of the dataframe that should be mapped
+keywords.to.cols <- function(input.col, col.prefix, keyword.list) {
+  result.df <- data.frame(input.col)
+  colnames(result.df) <- "Dummy"
+  for (n in names(keyword.list)) {
+    colname <- paste(col.prefix, n, sep="")
+    result.df[,colname] <- find.hits(input.col, unlist(keyword.list[n]))
+  }
+  data.frame(subset(result.df, select = -Dummy))
+}
 
 # Nice to have variables
 dontknow <- "Don't know"
@@ -301,32 +324,14 @@ for (input.str in false.pos$input.string) {
   df[,colname] <- df[,colname] & !false.hits
 }
 
-## Knee injury
+### Knee injury
 colnames(df)[colnames(df) == "Have.you.ever.injured.a.knee.while.dancing.tango."] <- "Knee.injury"
 df$Knee.injury <- na.to.string(df$Knee.injury, noresponse)
 df$Knee.injury <- df$Knee.injury == yes
 colnames(df)[colnames(df) == paste("If.your.answer.was.yes.to.the.above.question..please.specify.the.kind",
   ".of.injury.to.your.knee..meniscus.tear..torn.ligament......", sep="")] <- "Knee.injury.what.txt"
 df$Knee.injury.what.txt <- na.to.string(df$Knee.injury.what.txt, noresponse)
-# finds occurrences in the data.col of each given string from the pattern.vector
-# an returns a column with T where any match was found, F otherwise
-find.hits <- function (input.col, pattern.vector) {
-  result <- input.col == F
-  for (p in pattern.vector) {
-    hits <- input.col %in% grep(p, input.col, ignore.case = T, value=T)
-    result <- result | hits
-  }
-  result
-}
-map.symptoms.to.cols <- function(input.col, col.prefix, symptom.list) {
-  result.df <- data.frame(input.col)
-  colnames(result.df) <- "Dummy"
-  for (n in names(symptom.list)) {
-    colname <- paste(col.prefix, n, sep="")
-    result.df[,colname] <- find.hits(input.col, unlist(symptom.list[n]))
-  }
-  data.frame(subset(result.df, select = -Dummy))
-}
+
 symptom.list <- list(
   swollen = c("swell", "swoll", "swilled"),
   inflammation = c("inflammation", "bursitis", "tendinitis"),
@@ -338,50 +343,136 @@ symptom.list <- list(
   imbalanced = c("feeling an imbalance", "misaligned"),
   open.wound = c("open wound")
 )
-df <- cbind(df, map.symptoms.to.cols(df$Knee.injury.what, "Knee.injury.", symptom.list))
+df <- cbind(df, keywords.to.cols(df$Knee.injury.what, "Knee.injury.symptom.", symptom.list))
+tissue.list <- list(
+  patella = c("patella"),
+  cartilage = c("cartilage"),
+  meniscus = c("meniscus"),
+  ligament = c("ligament", "ACL", "tendons"),
+  fat.pad = c("fat pad")
+)
+df <- cbind(df, keywords.to.cols(df$Knee.injury.what, "Knee.injury.where.", tissue.list))
+cause.list <- list(
+  floor = c("floor", "surface"),
+  shoes = c("rubber sole", "not wearing high heels help"),
+  overuse = c("overuse", "after the first marathon"),
+  pivot = c("pivot", "turn", "ocho", "rotations", "twist"),
+  partner = c("leader"),
+  nontango = c("ancient damage", "from ski", "not directly related to tango", "due to the age", "dancing, but flaring up during tango")
+)
+df <- cbind(df, keywords.to.cols(df$Knee.injury.what, "Knee.injury.why.", cause.list))
+duration.list <- list(
+  mentioned = c("for a while", "a few days", "three weeks", "for a day", "a couple of days", "for awhile", "a good nights sleep")
+)
+df <- cbind(df, keywords.to.cols(df$Knee.injury.what, "Knee.injury.duration.", duration.list))
 
-#Knee.injury.where.patella
-# "patella"
-# "cartilage"
-# "meniscus"
-# "ligament"/ "ACL" / "tendons"
-# "fat pad"
-
-#Knee.injury.cause.floor
-#Knee.injury.cause.overuse
-#Knee.injury.cause.pivot
-#Knee.injury.cause.shoes
-#Knee.injury.cause.leader
-#Knee.injury.cause.nontango
-# "floor" / "surface" / "rubber sole"
-# "overuse" / "after the first marathon"
-# "pivot" / "turn" / "ocho" / "rotations" / "twist"
-# "leader"
-# "ancient damage" / "from ski" / "not directly related to tango" / "due to the age" / "caused by "hope" dancing, but flaring up during tango"
-# "not wearing high heels help"
-
-#Knee.injury.duration.text
-# "for a while"
-# "three weeks"
-# "a few days"
-# "for a day"
-# "a couple of days"
-# "could not dance for awhile"
-# "nothing a good nights sleep/rest havnt cured jet"
-
-
-# 
-## Open wound <- 
+ 
+### Open wound
 colnames(df)[colnames(df) == "Have.you.ever.gotten.an.open.wound..with.blood..from.dancing.tango."] <- "Open.wound.raw"                                                                                                                                                               
+df$Open.wound.raw <- na.to.string(df$Open.wound.raw, noresponse)
+df$Open.wound <- df$Open.wound.raw == yes
 colnames(df)[colnames(df) == paste("If.your.answer.was.yes.to.the.above.question..in.which.body.part.did",
   ".you.get.wounded.and.how.", sep="")] <- "Open.wound.where.how.raw"
+df$Open.wound.where.how.raw <- na.to.string(df$Open.wound.where.how.raw, noresponse)
+tissue.list <- list(
+  toenail = c("toenail", "toe nail", "nail broke", "foot nail", "toe's nail"),
+  toe = c("toe"),
+  top.of.foot = c("top of the foot", "upper part of foot", "upper side of my foot", "top of foot", 
+                  "up of the foot"),
+  foot = c("foot", "feet", "inside shoe near heel"),
+  heel = c("achilles"),
+  arch = c("arch"),
+  ankle = c("ancle area", "ankle"),
+  shin = c("shin", "tibia"),
+  calf = c("calf", "calves"),
+  knee = c("knee"),
+  thigh = c("thigh"),
+  leg = c("legs", "lower leg"),
+  arm = c("under arm"),
+  lower.back = c("lower back")
+)
+side.list <- list(left = c("left"), right = c("right"))
+cause.list <- list(
+  heel.own = c("heel during a cross", "my own", "kicked myself", "own shoes", "hitting my own toes",
+               "my heel", "stepping on my own foot", "own heel", "self-injury",
+               "me swiping my own feet", "by leader or myself", "my own",
+               "the high heel of the other foot", "self inflicted on feet", "else's heel - or my own", 
+               "scrape my own feet with my shoes", "stepping on myself with a heel",
+               "high heels (own and others)", "other people's high heels and my own",
+               "nicked myself with a heel", "with my left heel", "injured myself with my own", 
+               "kicked myself", "self-inflicted while uncorssing", "my left heel scratched my" ),
+  heel.other.dancer = c("else's heel", "follower's heel", "another person kicked me with the heel", 
+                        "from a follower, quite heavy woman, who literally rammed her hill in my foot",
+                        "the heel of another follower", "lady stepped into my foot", 
+                        "other follower's heel", "another couples followers heel",
+                        "someone elses shoe heel", "high heels from another person",
+                        "a tango heel in my calf after high boleo", "follower stepping her heels",
+                        "from other heels", "other peoples stilettos", 
+                        "girls that have stepped with the heel", 
+                        "from other follows being careless with their heels",
+                        "other dancers heels", "female dancer's have caught me with their heels",
+                        "of other's heels", "high heels (own and others)",
+                        "a follower to boleo a heel", "with his heel",
+                        "other people's high heels", "my follower's high heels", "heel flinging lady",
+                        "ran her heel into my shoe while we were both dancing",
+                        "another follower: her heel", "another follower heel", "other followers heel",
+                        "a woman in heels", "other dancer's heel", "stepped on with a stiletto",
+                        "heel from anotger dancer", "by another follower", "other man's heel", 
+                        "high heel of another dancer", "heels of followers", "follower heal inside shoe",
+                        "stepped on me with the high hells", "with her heel"),
+  heel.unspecified = c("from a heel", "foot by heel", "(heel scratch)", "by womens heels", "from heels",
+                       "hitting with a heel", "heel cut my skin", "scratched by heel",
+                       "stabbed by stiletto heels", "scratched by the stiletto heel", 
+                       "heel stepped on my toe", "by high  heels"),
+  other.dancer = c("by another dancer", "another couple's high voleo", "by other dancer", 
+                   "by neighboring couples", "own heel or from others", "another followers shoe",
+                   "from another couple", "other followers stepped", "by another dancer", 
+                   "get hit by others feet", "another follower", "other dancers boleos",
+                   "from other couple", "from other people"),
+  partner = c("partner stepped on", "partner stood with his heel on my toes", "wounded by partner", 
+              "toe collision", "hit by man shoes", "partners heel", "men smashing my big toe nail",
+              "stepped on by leader", "leaders caught my toenails", "stubbed by tanguero's shoes",
+              "partners' back sacada", "toes by accident with my partner", "my follower's high heels",
+              "a guy walked into my foot", "ran her heel into my shoe while we were both dancing", 
+              "leaders shoes", "leaders stepping on me", "while dancing with me", "by my partner s foot",
+              "stepped on by partner"),
+  boleo = c("boleo", "voleo"),
+  gancho = c("gancho"),
+  back.sacada = c("back sacada"),
+  cross = c("during a cross", "in a cross", "while uncrossing", "across my toe accidentally"),
+  floorcraft = c("related to bad traffic", "leader misjudged the distance", 
+                 "high boleo during a very busy milonga", "other couple crashed to us", "mislead boleo",
+                 "being careless", "a boleo gone wild", "crowded milonga",
+                 "someone leads a follower to boleo", "had poor partners", "came to close",
+                 "bad floorcraft", "crowded dance floor", "because the leader was rushing me", 
+                 "other couples' badly controled steps", "too fast changes", "on a mostly empty floor", 
+                 "during her crazy boleo", "by leader behind me"),
+  inexperience = c("as a beginner", "unexperienced dancers", "experimental move", "was inexperienced",
+                   "my own, inexpert use"),
+  genre = c("milonga"),
+  shoes = c("I don't wear open shoes anymore", "wearing open-toed shoes", "because with heeled shoes"),
+  stepped.on = c("rammed her hill in my foot an remained standing on it", "stepped into my foot", 
+                 "stepped on", "stepping on my feet", "follower stepping her heels",
+                 "stepping on me", "got stamped"),
+  kicked = c("kicked"),
+  location = c("in edinburgh")
+)
+degree.list <- list(
+  not.serious = c("not too serious", "nothing serious", "only once", "nothing big", "small, not too bad",
+                  "just minor wounds", "i experienced worse injuries from competitive sports",
+                  "bled only little", "only hematoma though, no groce blood puddles",
+                  "more like a scratch, no big deal"),
+  bad = c("a bad injury", "lots of times", "wounded several times", "several times", "hurt a lot"),
+  exclamation = c("auch")
+)
+# 191
 
-## Other tango injures <- 
+### Other tango injures <- 
 colnames(df)[colnames(df) == paste("Please.describe.any.other.tango.injuries.resulting.from.something",
   ".specific.that.happened.on.the.dance.floor..e.g..hit.by.elbow..stepped.on..slipped.....",
   sep="")] <- "Other.tango.injury.raw"
 
-## Longer term issues
+### Longer term issues
 colnames(df)[colnames(df) == paste("Have.you.experienced.any.longer.term.body.issues.you.have.experienced",
   ".that.might.be.related.to.your.tango.dancing.", sep="")] <- "Long.term.issues.raw"                                                                                                              
 colnames(df)[colnames(df) == "If.yes..please.describe.the.issues."] <- "Long.term.issues.descr.raw"                                                                                                                                                                                             
@@ -501,7 +592,7 @@ df$Country.of.residence[index] <- as.character(country$Country.name[country$Look
 nbr.per.country <- count.responses(df$Country.of.residence)
 rm(uk.flag)
 
-# Test is more clean-up is needed
+# Test if more clean-up is needed
 df$Country.raw[is.na(df$Country.of.residence)][!is.na(df$Country.raw[is.na(df$Country.of.residence)])]
 
 export.to.file = F
